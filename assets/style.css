@@ -177,7 +177,7 @@ a:hover { color: var(--faint); }
   padding: 0;
   border: none;
   background: none;
-  cursor: zoom-in;
+  cursor: default;
   opacity: 0;
   transform: translateY(20px);
   transition: opacity 640ms ease, transform 640ms var(--ease);
