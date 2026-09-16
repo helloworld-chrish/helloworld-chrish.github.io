@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>後台 — Chris H.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="assets/admin.css">
+</head>
+
+<body>
+
+<header class="bar">
+  <div class="bar__left">
+    <strong class="bar__title">PORTFOLIO ADMIN</strong>
+    <span class="chip" id="repoChip">未設定</span>
+  </div>
+  <div class="bar__right">
+    <span class="status" id="status"></span>
+    <button class="btn" id="settingsBtn" type="button">設定</button>
+    <button class="btn btn--primary" id="publishBtn" type="button" disabled>發佈</button>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section class="panel" id="connectPanel">
+    <h2>連線到 GitHub</h2>
+    <p class="hint">
+      後台直接用 GitHub API 把改動 commit 進你的 repo，不需要任何伺服器。
+      Token 只存在這台電腦的瀏覽器裡，不會傳給第三方。
+    </p>
+    <div class="grid">
+      <label>帳號 / 組織
+        <input id="fOwner" placeholder="your-github-name" autocomplete="off" spellcheck="false">
+      </label>
+      <label>Repository
+        <input id="fRepo" placeholder="my-portfolio" autocomplete="off" spellcheck="false">
+      </label>
+      <label>分支
+        <input id="fBranch" placeholder="main" autocomplete="off" spellcheck="false">
+      </label>
+      <label>Fine-grained token
+        <input id="fToken" type="password" placeholder="github_pat_..." autocomplete="off" spellcheck="false">
+      </label>
+    </div>
+    <div class="row">
+      <button class="btn btn--primary" id="connectBtn" type="button">連線</button>
+      <button class="btn btn--ghost" id="forgetBtn" type="button">清除 token</button>
+      <a class="hint-link" href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noreferrer noopener">
+        建立 token（權限只需 Contents: Read and write）
+      </a>
+    </div>
+  </section>
+
+  <section class="panel" id="profilePanel" hidden>
+    <h2>個人資料</h2>
+    <div class="grid">
+      <label>顯示名稱 <input id="pName" placeholder="Chris H."></label>
+      <label>Email <input id="pEmail" type="email" placeholder="you@example.com"></label>
+      <label>Instagram 帳號 <input id="pIg" placeholder="your_handle"></label>
+      <label>中文簡介 <input id="pBioZh" placeholder="攝影師，生長於台灣。"></label>
+      <label>英文簡介 <input id="pBioEn" placeholder="A photographer born and raised in Taiwan."></label>
+      <label>肖像照路徑 <input id="pPortrait" placeholder="photos/portrait.webp（可留空）"></label>
+    </div>
+  </section>
+
+  <section class="panel" id="photosPanel" hidden>
+    <div class="panel__head">
+      <h2>照片 <span class="chip" id="countChip">00</span></h2>
+      <div class="row">
+        <button class="btn" id="addBtn" type="button">+ 新增照片</button>
+        <input type="file" id="fileInput" accept="image/*" multiple hidden>
+      </div>
+    </div>
+    <p class="hint">
+      拖曳卡片可調整順序（前台由上到下、左右分欄依此順序排列）。
+      上傳時會自動在瀏覽器裡壓縮成長邊 2400px 的 WebP，並另外產生 600px 縮圖。
+    </p>
+
+    <div class="dropzone" id="dropzone">
+      <div class="cards" id="cards"></div>
+      <div class="dropzone__empty" id="emptyHint">把照片拖進這裡，或按「+ 新增照片」</div>
+    </div>
+  </section>
+
+</main>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="assets/admin.js" defer></script>
+</body>
+</html>
