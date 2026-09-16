@@ -17,10 +17,19 @@
 
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23f4f3f1'/%3E%3Crect x='30' y='30' width='18' height='40' fill='%231a1a19'/%3E%3Crect x='54' y='30' width='18' height='26' fill='%23a05a45'/%3E%3C/svg%3E">
 
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="preload" href="assets/fonts/ibm-plex-mono-latin-400.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="assets/style.css">
+
+<!-- Kick the photo list off during HTML parse. Without this it can only
+     start after app.js has downloaded and run — a whole round trip that
+     every image then waits on. -->
+<script>
+  window.__photos = fetch('data/photos.json', { cache: 'no-cache' })
+    .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
+  // app.js does the real error handling; this just keeps an early
+  // network failure from logging as an unhandled rejection.
+  window.__photos.catch(function () {});
+</script>
 </head>
 
 <body>

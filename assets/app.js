@@ -368,11 +368,12 @@
 
   state.narrow = narrowMQ.matches;
 
-  fetch(DATA_URL, { cache: 'no-cache' })
-    .then(function (r) {
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      return r.json();
-    })
+  // index.html starts this fetch in <head>; fall back if that script
+  // was stripped or failed to run.
+  (window.__photos || fetch(DATA_URL, { cache: 'no-cache' }).then(function (r) {
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  }))
     .then(function (data) {
       state.photos = Array.isArray(data.photos) ? data.photos : [];
       state.profile = data.profile || {};
