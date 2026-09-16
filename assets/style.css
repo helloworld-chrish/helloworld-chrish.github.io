@@ -205,17 +205,6 @@ a:hover { color: var(--faint); }
 .block--wide .shot { margin-bottom: var(--gap); }
 .block--wide .shot img { width: 100%; }
 
-/* On one column "full rail" and "half rail" look identical, so the rhythm
-   is carried by width instead: landscapes bleed to the screen edge while
-   portraits stay inside the gutter. 50% - 50vw breaks out of every
-   ancestor's padding regardless of how wide the rail resolved to. */
-@media (max-width: 767px) {
-  .block--wide {
-    margin-left: calc(50% - 50vw);
-    margin-right: calc(50% - 50vw);
-  }
-}
-
 .shot {
   margin: 0 0 var(--gap);
   position: relative;
