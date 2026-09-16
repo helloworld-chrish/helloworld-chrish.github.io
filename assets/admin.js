@@ -13,7 +13,9 @@
   var TOKEN_KEY = 'pf-admin-token';
   var DATA_PATH = 'data/photos.json';
   var MAX_EDGE = 2400;
+  var MID_EDGE = 1200;       // what the grid actually shows
   var THUMB_EDGE = 600;
+  var RENDITIONS = 3;        // src + mid + thumb per photo
   var API = 'https://api.github.com';
 
   var cfg = { owner: '', repo: '', branch: 'main' };
@@ -239,22 +241,34 @@
       var srcW = bitmap.width || bitmap.naturalWidth;
       var srcH = bitmap.height || bitmap.naturalHeight;
       var full = fit(srcW, srcH, MAX_EDGE);
+      var mid = fit(srcW, srcH, MID_EDGE);
       var small = fit(srcW, srcH, THUMB_EDGE);
-      return Promise.all([encode(bitmap, full, 0.82), encode(bitmap, small, 0.72)])
-        .then(function (out) {
+      return Promise.all([
+        encode(bitmap, full, 0.82),
+        encode(bitmap, mid, 0.78),
+        encode(bitmap, small, 0.72)
+      ]).then(function (out) {
           var id = slugify(file.name) + '-' + Date.now().toString(36) +
             Math.random().toString(36).slice(2, 5);
-          var srcPath = 'photos/' + id + '.' + out[0].ext;
-          var thumbPath = 'photos/' + id + '-thumb.' + out[1].ext;
-          return Promise.all([toBase64(out[0].blob), toBase64(out[1].blob)])
+          var paths = [
+            'photos/' + id + '.' + out[0].ext,
+            'photos/' + id + '-mid.' + out[1].ext,
+            'photos/' + id + '-thumb.' + out[2].ext
+          ];
+          return Promise.all(out.map(function (o) { return toBase64(o.blob); }))
             .then(function (b64) {
-              pending.set(srcPath, { base64: b64[0], url: URL.createObjectURL(out[0].blob) });
-              pending.set(thumbPath, { base64: b64[1], url: URL.createObjectURL(out[1].blob) });
+              paths.forEach(function (path, k) {
+                pending.set(path, {
+                  base64: b64[k],
+                  url: URL.createObjectURL(out[k].blob)
+                });
+              });
               if (bitmap.close) bitmap.close();
               return {
                 id: id,
-                src: srcPath,
-                thumb: thumbPath,
+                src: paths[0],
+                mid: paths[1],
+                thumb: paths[2],
                 w: full.w,
                 h: full.h,
                 caption: '',
@@ -390,7 +404,7 @@
   function remove(i) {
     var p = draft.photos[i];
     if (!window.confirm('確定要刪除第 ' + (i + 1) + ' 張？發佈後才會真的從網站移除。')) return;
-    [p.src, p.thumb].forEach(function (path) {
+    [p.src, p.mid, p.thumb].forEach(function (path) {
       if (!path) return;
       if (pending.has(path)) {
         URL.revokeObjectURL(pending.get(path).url);
@@ -534,14 +548,17 @@
       hero: draft.hero,
       profile: draft.profile,
       photos: draft.photos.map(function (p) {
-        return { id: p.id, src: p.src, thumb: p.thumb, w: p.w, h: p.h, caption: p.caption || '' };
+        return {
+          id: p.id, src: p.src, mid: p.mid, thumb: p.thumb,
+          w: p.w, h: p.h, caption: p.caption || ''
+        };
       })
     }, null, 2) + '\n';
   }
 
   function changeCount() {
     var jsonChanged = serialize() !== remoteJson ? 1 : 0;
-    return (pending.size / 2 | 0) + deletions.size + jsonChanged;
+    return (pending.size / RENDITIONS | 0) + deletions.size + jsonChanged;
   }
 
   function markDirty() {
@@ -606,8 +623,8 @@
       })
       .then(function (newTree) {
         var msg = 'portfolio: ' + draft.photos.length + ' 張照片';
-        if (paths.length) msg += '（新增 ' + (paths.length / 2 | 0) + '）';
-        if (deletions.size) msg += '（刪除 ' + (deletions.size / 2 | 0) + '）';
+        if (paths.length) msg += '（新增 ' + (paths.length / RENDITIONS | 0) + '）';
+        if (deletions.size) msg += '（刪除 ' + deletions.size + ' 個檔案）';
         return gh('/git/commits', {
           method: 'POST',
           body: { message: msg, tree: newTree.sha, parents: [baseSha] }

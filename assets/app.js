@@ -5,7 +5,8 @@
 
   var DATA_URL = 'data/photos.json';
   var WIDE_RATIO = 1.4;      // w/h above this spans the full rail
-  var THUMB_WIDTH = 600;     // must match what admin.js generates
+  var THUMB_WIDTH = 600;     // these must match what admin.js generates
+  var MID_WIDTH = 1200;
 
   var state = {
     photos: [],
@@ -64,10 +65,18 @@
       img.height = p.h;
       img.style.aspectRatio = p.w + ' / ' + p.h;
     }
-    // let the browser pick the thumbnail on small screens
-    if (p.thumb && p.w > THUMB_WIDTH) {
-      img.srcset = p.thumb + ' ' + THUMB_WIDTH + 'w, ' + p.src + ' ' + p.w + 'w';
+    // Offer every rendition we have so the browser can pick the smallest
+    // file that still covers the slot — without a mid size it jumps
+    // straight to the full-resolution original for a ~420px column.
+    var set = [];
+    if (p.thumb) set.push(p.thumb + ' ' + THUMB_WIDTH + 'w');
+    if (p.mid) set.push(p.mid + ' ' + MID_WIDTH + 'w');
+    if (p.w) set.push(p.src + ' ' + p.w + 'w');
+    if (set.length > 1) {
+      img.srcset = set.join(', ');
       img.sizes = '(max-width: 767px) 92vw, min(540px, 30vw)';
+      // start from the mid size so a stale cache never pulls the big one
+      if (p.mid) img.src = p.mid;
     }
 
     var cap = document.createElement('figcaption');
