@@ -268,7 +268,7 @@
 
   function paintProfile(profile, heroPhoto) {
     var name = profile.name || 'Portfolio';
-    document.title = name + ' — 攝影作品集';
+    document.title = name;
     document.getElementById('heroName').textContent = name;
     document.getElementById('footName').textContent = name.toUpperCase();
     document.getElementById('aboutName').textContent = name;

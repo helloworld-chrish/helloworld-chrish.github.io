@@ -533,7 +533,7 @@
         '$1' + cover.src + '$2');
     }
     if (name) {
-      out = out.replace(/(<title>)[^<]*(<\/title>)/, '$1' + name + ' — 攝影作品集$2');
+      out = out.replace(/(<title>)[^<]*(<\/title>)/, '$1' + name + '$2');
       out = out.replace(/(<meta property="og:title" content=")[^"]*(")/,
         '$1' + name + ' — 攝影作品集$2');
     }
