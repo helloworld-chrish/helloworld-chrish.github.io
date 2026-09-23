@@ -4,6 +4,7 @@
      draft      the photos.json we are about to publish
      pending    path -> { base64, url } for images not yet committed
      deletions  paths that exist on GitHub and should be removed
+                (deletedIds counts those by photo, for the UI's benefit)
    Publishing turns all three into ONE commit via the git data API, so the
    site rebuilds once instead of once per file. */
 (function () {
@@ -25,6 +26,7 @@
   var remoteExists = false;            // false until we have seen it on GitHub
   var pending = new Map();
   var deletions = new Set();
+  var deletedIds = new Set();          // deletions counted by photo, not by file
   var drag = null;
 
   var $ = function (id) { return document.getElementById(id); };
@@ -147,6 +149,7 @@
         remoteJson = remoteExists ? serialize(draft) : '';
         pending.clear();
         deletions.clear();
+        deletedIds.clear();
         $('repoChip').textContent = cfg.owner + '/' + cfg.repo + ' · ' + cfg.branch;
         $('profilePanel').hidden = false;
         $('photosPanel').hidden = false;
@@ -416,6 +419,7 @@
         pending.delete(path);       // never committed — nothing to delete remotely
       } else {
         deletions.add(path);
+        deletedIds.add(p.id);       // a photo is one change, not three files
       }
     });
     draft.photos.splice(i, 1);
@@ -567,7 +571,7 @@
 
   function changeCount() {
     var jsonChanged = serialize(draft) !== remoteJson ? 1 : 0;
-    return (pending.size / RENDITIONS | 0) + deletions.size + jsonChanged;
+    return (pending.size / RENDITIONS | 0) + deletedIds.size + jsonChanged;
   }
 
   function markDirty() {
@@ -633,7 +637,7 @@
       .then(function (newTree) {
         var msg = 'portfolio: ' + draft.photos.length + ' 張照片';
         if (paths.length) msg += '（新增 ' + (paths.length / RENDITIONS | 0) + '）';
-        if (deletions.size) msg += '（刪除 ' + deletions.size + ' 個檔案）';
+        if (deletedIds.size) msg += '（刪除 ' + deletedIds.size + '）';
         return gh('/git/commits', {
           method: 'POST',
           body: { message: msg, tree: newTree.sha, parents: [baseSha] }
@@ -649,6 +653,7 @@
         pending.forEach(function (item) { URL.revokeObjectURL(item.url); });
         pending.clear();
         deletions.clear();
+        deletedIds.clear();
         remoteJson = json;
         markDirty();
         render();

@@ -13,7 +13,9 @@ assets/
   style.css           前台樣式
   admin.css           後台樣式
 data/photos.json      唯一的資料來源：順序、尺寸、說明、封面、個人資料
-photos/               圖檔：<id>.webp 與 <id>-thumb.webp
+photos/               圖檔：每張三種尺寸
+                      <id>.jpg（2400px）、<id>-mid.jpg（1200px，網格用）
+                      <id>-thumb.jpg（600px）
 ```
 
 ## 一、建立 repo 並上線
@@ -53,8 +55,9 @@ https://helloworld-chrish.github.io/
 
 - **新增**：拖曳或選檔。上傳前會在瀏覽器裡產生三種尺寸——2400px 全圖
   （放大檢視用）、1200px 中尺寸（網格實際顯示的就是這個）、600px 縮圖
-  （手機與後台預覽）。原始的幾十 MB 檔案不會進 repo。優先用 WebP，
-  瀏覽器不支援編碼時自動退回 JPEG。
+  （手機與後台預覽）。原始的幾十 MB 檔案不會進 repo。瀏覽器支援 WebP
+  編碼時就用 WebP，否則退回 JPEG——Safari 走的是 JPEG，所以目前 repo
+  裡的檔案都是 .jpg。
 - **排序**：拖曳卡片，或用 ◀ ▶ 按鈕（觸控與鍵盤可用）。
 - **封面**：決定 hero 大圖，同時會同步 `index.html` 的 `og:image`。
 - **刪除**：發佈後才真的從 repo 移除；誤刪可用 `git revert` 救回。
