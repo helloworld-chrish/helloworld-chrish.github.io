@@ -61,6 +61,21 @@ https://helloworld-chrish.github.io/
 - **發佈**：所有改動（新圖、刪圖、photos.json、index.html）合併成
   **一個 commit**，所以只會觸發一次部署，約 30–60 秒後生效。
 
+## 瀏覽統計（GoatCounter）
+
+`index.html` 載入 GoatCounter 的 `count.js`，後台最上方的「瀏覽統計」區塊
+再用 GoatCounter API 讀回來：今天／近 7 天／近 30 天訪客數、每日長條圖、
+最常被點開的照片（前台每次開 lightbox 會送一個 `photo/<id>` 事件）。
+
+- 數字是**不重複訪客**，同一個人重新整理不會一直增加。
+- 建 token：GoatCounter → Settings → API，只勾 **Read statistics**。
+  Token 跟 GitHub token 一樣只存在該瀏覽器的 localStorage。
+- 排除自己：在每個常用的瀏覽器開一次
+  `https://helloworld-chrish.github.io/#toggle-goatcounter`。
+- GoatCounter 的 Settings 請把時區設成 `Asia/Taipei`，每日分界才會是台灣的午夜。
+- 裝了廣告／追蹤阻擋器的訪客不會被計入；你自己的電腦若擋了
+  `goatcounter.com`，後台也讀不到統計，要把它加進允許清單。
+
 ## 四、本機預覽
 
 `fetch()` 不能在 `file://` 下讀 JSON，請用簡易伺服器：

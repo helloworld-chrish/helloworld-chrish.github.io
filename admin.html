@@ -53,6 +53,58 @@
     </div>
   </section>
 
+  <section class="panel" id="statsPanel">
+    <div class="panel__head">
+      <h2>瀏覽統計 <span class="chip">近 30 天</span></h2>
+      <div class="row">
+        <button class="btn" id="statsRefresh" type="button">重新整理</button>
+        <button class="btn btn--ghost" id="statsSettings" type="button">設定</button>
+      </div>
+    </div>
+
+    <div class="stats-form" id="gcForm" hidden>
+      <div class="grid">
+        <label>GoatCounter code
+          <input id="gcCode" placeholder="helloworld-chrish" autocomplete="off" spellcheck="false">
+        </label>
+        <label>API token
+          <input id="gcToken" type="password" placeholder="只需 Read statistics 權限" autocomplete="off" spellcheck="false">
+        </label>
+      </div>
+      <div class="row">
+        <button class="btn btn--primary" id="gcSave" type="button">儲存並載入</button>
+        <button class="btn btn--ghost" id="gcForget" type="button">清除 token</button>
+        <a class="hint-link" id="gcTokenLink" href="#" target="_blank" rel="noreferrer noopener">
+          建立 token（GoatCounter → Settings → API，只勾 Read statistics）
+        </a>
+      </div>
+    </div>
+
+    <div class="stats" id="statsBody" hidden>
+      <div class="tiles">
+        <div class="tile"><span class="tile__label">今天</span><strong class="tile__value" id="tToday">–</strong></div>
+        <div class="tile"><span class="tile__label">近 7 天</span><strong class="tile__value" id="tWeek">–</strong></div>
+        <div class="tile"><span class="tile__label">近 30 天</span><strong class="tile__value" id="tMonth">–</strong></div>
+      </div>
+
+      <figure class="chart">
+        <figcaption class="chart__readout" id="chartReadout" aria-live="polite"></figcaption>
+        <div class="chart__plot">
+          <span class="chart__max" id="chartMax"></span>
+          <div class="chart__bars" id="chartBars"></div>
+        </div>
+        <div class="chart__axis" id="chartAxis"></div>
+      </figure>
+
+      <div>
+        <h3 class="stats__sub">最常被點開的照片</h3>
+        <ol class="toplist" id="topList"></ol>
+      </div>
+    </div>
+
+    <p class="hint" id="statsMsg"></p>
+  </section>
+
   <section class="panel" id="profilePanel" hidden>
     <h2>個人資料</h2>
     <div class="grid">

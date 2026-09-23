@@ -150,6 +150,7 @@
         $('connectPanel').hidden = true;
         fillProfile();
         render();
+        renderStats();          // top-photo list can now show thumbnails
         status('已連線', 'ok');
       })
       .catch(function (err) {
@@ -654,6 +655,250 @@
       });
   }
 
+  /* ── stats (GoatCounter) ───────────────────────────────────── */
+
+  /* index.html reports to GoatCounter; this reads it back through the
+     GoatCounter API (CORS-enabled, so no server needed). GoatCounter only
+     counts unique visitors — reloading the page does not inflate anything.
+     Lightbox opens arrive as events named photo/<id>. Independent of the
+     GitHub connection: stats show even before connecting. */
+
+  var GC_KEY = 'pf-admin-gc';
+  var GC_TOKEN_KEY = 'pf-admin-gc-token';
+  var STATS_DAYS = 30;
+  var TOP_PHOTOS = 5;
+  var WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六'];
+
+  var gc = { code: 'helloworld-chrish', token: '' };
+  var stats = null;        // { days: [{ key, date, n }], photos: [{ id, title, count }] }
+  var sitePhotos = [];     // the deployed photos.json, for thumbnails before connecting
+
+  function pad2(n) { return String(n).padStart(2, '0'); }
+
+  function dayKey(d) {
+    return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+  }
+
+  function shortDay(d) {
+    return (d.getMonth() + 1) + '/' + d.getDate() + '（' + WEEKDAYS[d.getDay()] + '）';
+  }
+
+  function apiTime(d) { return d.toISOString().replace(/\.\d{3}Z$/, 'Z'); }
+
+  function loadGc() {
+    try {
+      gc.code = localStorage.getItem(GC_KEY) || gc.code;
+      gc.token = localStorage.getItem(GC_TOKEN_KEY) || '';
+    } catch (e) { /* storage blocked — form stays empty */ }
+    $('gcCode').value = gc.code;
+    $('gcToken').value = gc.token;
+    syncTokenLink();
+  }
+
+  function saveGc() {
+    gc.code = $('gcCode').value.trim().toLowerCase();
+    gc.token = $('gcToken').value.trim();
+    localStorage.setItem(GC_KEY, gc.code);
+    localStorage.setItem(GC_TOKEN_KEY, gc.token);
+    syncTokenLink();
+  }
+
+  function syncTokenLink() {
+    $('gcTokenLink').href = 'https://' + (gc.code || 'www') + '.goatcounter.com/user/api';
+  }
+
+  function statsMsg(text, isErr) {
+    var m = $('statsMsg');
+    m.textContent = text || '';
+    m.style.color = isErr ? 'var(--danger)' : '';
+  }
+
+  function loadStats() {
+    if (!/^[a-z0-9-]+$/.test(gc.code) || !gc.token) {
+      $('gcForm').hidden = false;
+      statsMsg('填入 GoatCounter code 和 API token 後就能在這裡看每日訪客數。');
+      return;
+    }
+
+    // One extra day of slack: GoatCounter buckets days in the site's own
+    // timezone, so we ask for a little more and pick days by date string.
+    var now = new Date();
+    var start = new Date(now);
+    start.setHours(0, 0, 0, 0);
+    start.setDate(start.getDate() - STATS_DAYS);
+    var end = new Date(now);
+    end.setMinutes(0, 0, 0);
+    end.setHours(end.getHours() + 1);
+
+    var url = 'https://' + gc.code + '.goatcounter.com/api/v0/stats/hits' +
+      '?limit=200&start=' + encodeURIComponent(apiTime(start)) +
+      '&end=' + encodeURIComponent(apiTime(end));
+
+    $('statsRefresh').disabled = true;
+    statsMsg('載入中…');
+
+    fetch(url, { headers: { 'Authorization': 'Bearer ' + gc.token } })
+      .catch(function () {
+        throw new Error('連不到 GoatCounter。這台電腦的廣告／追蹤阻擋器（或 DNS 過濾）可能擋掉了 goatcounter.com，請把它加入允許清單。');
+      })
+      .then(function (res) {
+        if (res.status === 401 || res.status === 403) {
+          throw new Error('GoatCounter token 無效或權限不足（需要 Read statistics）。');
+        }
+        if (res.status === 404) throw new Error('找不到 ' + gc.code + '.goatcounter.com，請確認 code。');
+        if (!res.ok) throw new Error('GoatCounter 回應 ' + res.status);
+        return res.json();
+      })
+      .then(function (data) {
+        stats = summarize(data, now);
+        $('gcForm').hidden = true;
+        var t = new Date();
+        statsMsg('更新於 ' + pad2(t.getHours()) + ':' + pad2(t.getMinutes()) +
+          '。數字是不重複訪客；有裝廣告阻擋器的訪客不會被計入。');
+        renderStats();
+      })
+      .catch(function (err) {
+        console.error(err);
+        statsMsg(err.message, true);
+      })
+      .then(function () { $('statsRefresh').disabled = false; });
+  }
+
+  function summarize(data, now) {
+    var perDay = Object.create(null);
+    var photos = [];
+
+    (data.hits || []).forEach(function (h) {
+      if (h.event) {
+        if (String(h.path).indexOf('photo/') === 0) {
+          photos.push({ id: h.path.slice(6), title: h.title || '', count: h.count || 0 });
+        }
+        return;
+      }
+      (h.stats || []).forEach(function (s) {
+        perDay[s.day] = (perDay[s.day] || 0) + (s.daily || 0);
+      });
+    });
+
+    var days = [];
+    for (var k = STATS_DAYS - 1; k >= 0; k--) {
+      var d = new Date(now);
+      d.setHours(12, 0, 0, 0);            // noon: immune to DST edges
+      d.setDate(d.getDate() - k);
+      days.push({ key: dayKey(d), date: d, n: perDay[dayKey(d)] || 0 });
+    }
+
+    photos.sort(function (a, b) { return b.count - a.count; });
+    return { days: days, photos: photos };
+  }
+
+  function renderStats() {
+    if (!stats) return;
+    $('statsBody').hidden = false;
+
+    var days = stats.days;
+    var sum = function (list) { return list.reduce(function (a, d) { return a + d.n; }, 0); };
+    $('tToday').textContent = days[days.length - 1].n.toLocaleString();
+    $('tWeek').textContent = sum(days.slice(-7)).toLocaleString();
+    $('tMonth').textContent = sum(days).toLocaleString();
+
+    renderChart(days);
+    renderTop(stats.photos);
+  }
+
+  function renderChart(days) {
+    var max = Math.max.apply(null, days.map(function (d) { return d.n; }));
+    var bars = $('chartBars');
+    var readout = $('chartReadout');
+    var last = days[days.length - 1];
+
+    function read(d) {
+      readout.textContent = shortDay(d.date) + ' · ' + d.n.toLocaleString() + ' 位訪客';
+    }
+
+    bars.textContent = '';
+    $('chartMax').textContent = max ? max.toLocaleString() : '';
+
+    days.forEach(function (d) {
+      var bar = document.createElement('div');
+      bar.className = 'chart__bar' + (d === last ? ' is-today' : '');
+      bar.tabIndex = 0;
+      bar.setAttribute('role', 'img');
+      bar.setAttribute('aria-label', shortDay(d.date) + ' ' + d.n + ' 位訪客');
+
+      var fill = document.createElement('span');
+      fill.className = 'chart__fill' + (d.n ? '' : ' is-zero');
+      fill.style.height = d.n && max ? Math.max(2, d.n / max * 100) + '%' : '';
+      bar.appendChild(fill);
+
+      bar.addEventListener('pointerenter', function () { read(d); });
+      bar.addEventListener('focus', function () { read(d); });
+      bars.appendChild(bar);
+    });
+
+    bars.onpointerleave = function () { read(last); };
+    bars.onfocusout = function () { read(last); };
+    read(last);
+
+    var axis = $('chartAxis');
+    axis.textContent = '';
+    [days[0], days[Math.floor(days.length / 2)], last].forEach(function (d, i) {
+      var s = document.createElement('span');
+      s.textContent = i === 2 ? '今天' : (d.date.getMonth() + 1) + '/' + d.date.getDate();
+      axis.appendChild(s);
+    });
+  }
+
+  function renderTop(list) {
+    var host = $('topList');
+    host.textContent = '';
+
+    if (!list.length) {
+      var none = document.createElement('li');
+      none.className = 'toplist__empty';
+      none.textContent = '還沒有資料——訪客在前台點開照片後就會出現在這裡。';
+      host.appendChild(none);
+      return;
+    }
+
+    var byId = Object.create(null);
+    (draft ? draft.photos : sitePhotos).forEach(function (p) { byId[p.id] = p; });
+    var top = list[0].count || 1;
+
+    list.slice(0, TOP_PHOTOS).forEach(function (item) {
+      var p = byId[item.id];
+      var li = document.createElement('li');
+      li.className = 'toplist__item';
+
+      var img = document.createElement('img');
+      img.className = 'toplist__thumb';
+      img.alt = '';
+      if (p) img.src = previewSrc(p);
+      li.appendChild(img);
+
+      var body = document.createElement('div');
+      body.className = 'toplist__body';
+      var name = document.createElement('span');
+      name.className = 'toplist__name';
+      name.textContent = (p && p.caption) || item.title || item.id;
+      var meter = document.createElement('span');
+      meter.className = 'toplist__meter';
+      var fill = document.createElement('span');
+      fill.style.width = (item.count / top * 100) + '%';
+      meter.appendChild(fill);
+      body.appendChild(name);
+      body.appendChild(meter);
+      li.appendChild(body);
+
+      var count = document.createElement('span');
+      count.className = 'toplist__count';
+      count.textContent = item.count.toLocaleString() + ' 位';
+      li.appendChild(count);
+
+      host.appendChild(li);
+    });
+  }
+
   /* ── wiring ────────────────────────────────────────────────── */
 
   $('connectBtn').addEventListener('click', connect);
@@ -695,6 +940,34 @@
     if (draft && changeCount() > 0) { e.preventDefault(); e.returnValue = ''; }
   });
 
+  $('statsRefresh').addEventListener('click', loadStats);
+  $('statsSettings').addEventListener('click', function () {
+    $('gcForm').hidden = !$('gcForm').hidden;
+  });
+  $('gcSave').addEventListener('click', function () { saveGc(); loadStats(); });
+  $('gcForget').addEventListener('click', function () {
+    localStorage.removeItem(GC_TOKEN_KEY);
+    gc.token = '';
+    $('gcToken').value = '';
+    toast('已從這台電腦清除 GoatCounter token');
+  });
+  $('gcCode').addEventListener('input', function () {
+    gc.code = this.value.trim().toLowerCase();
+    syncTokenLink();
+  });
+
   loadCfg();
+  loadGc();
+  loadStats();
+  // admin.html is served next to the live site, so its photos.json is one
+  // relative fetch away — enough to put faces on the top-photo list.
+  fetch(DATA_PATH, { cache: 'no-cache' })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (data) {
+      if (!data || !Array.isArray(data.photos)) return;
+      sitePhotos = data.photos;
+      renderStats();
+    })
+    .catch(function () { /* thumbnails are optional */ });
   if (cfg.owner && cfg.repo && token) connect();
 })();

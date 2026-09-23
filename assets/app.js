@@ -225,6 +225,17 @@
     }, 220);
   }
 
+  /* Each photo opened in the lightbox is sent to GoatCounter as an event
+     named photo/<id>, so admin.html can rank the most-viewed shots. The
+     script loads async and ad blockers often drop it — never depend on it. */
+  function track(p) {
+    var gc = window.goatcounter;
+    if (!gc || typeof gc.count !== 'function') return;
+    try {
+      gc.count({ path: 'photo/' + p.id, title: p.caption || p.id, event: true });
+    } catch (e) { /* stats are best-effort */ }
+  }
+
   function openLightbox(i) {
     if (i < 0 || i >= state.photos.length) return;
     state.openIndex = i;
@@ -241,6 +252,7 @@
     el.lbImg.src = p.src;
     el.lbImg.alt = altFor(p, state.openIndex);
     el.lbCaption.textContent = p.caption || '';
+    track(p);
     if (dir > 0) el.lbImg.classList.add('slide-next');
     else if (dir < 0) el.lbImg.classList.add('slide-prev');
     preload(state.openIndex + 1);
