@@ -742,12 +742,25 @@
         throw new Error('連不到 GoatCounter。這台電腦的廣告／追蹤阻擋器（或 DNS 過濾）可能擋掉了 goatcounter.com，請把它加入允許清單。');
       })
       .then(function (res) {
-        if (res.status === 401 || res.status === 403) {
-          throw new Error('GoatCounter token 無效或權限不足（需要 Read statistics）。');
+        if (res.ok) {
+          return res.json().catch(function () {
+            throw new Error('回應不是 JSON，請求可能被本機的阻擋器或代理攔截了。');
+          });
         }
-        if (res.status === 404) throw new Error('找不到 ' + gc.code + '.goatcounter.com，請確認 code。');
-        if (!res.ok) throw new Error('GoatCounter 回應 ' + res.status);
-        return res.json();
+        return res.text().catch(function () { return ''; }).then(function (body) {
+          // What GoatCounter itself answers: 400 for an unknown site code,
+          // 401 for a bad token. Anything else — 404 especially — usually
+          // means something in front of it answered instead.
+          var snippet = body.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 140);
+          if (res.status === 401 || res.status === 403) {
+            throw new Error('GoatCounter token 無效或權限不足（需要 Read statistics）。');
+          }
+          if (res.status === 400) {
+            throw new Error('GoatCounter 不認得 code「' + gc.code + '」，請確認。' + snippet);
+          }
+          throw new Error('回應 ' + res.status + '（不是 GoatCounter 的正常回應，可能被阻擋器或代理攔截）：' +
+            (snippet || '（內容空白）'));
+        });
       })
       .then(function (data) {
         stats = summarize(data, now);
