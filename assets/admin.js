@@ -21,7 +21,8 @@
   var cfg = { owner: '', repo: '', branch: 'main' };
   var token = '';
   var draft = null;
-  var remoteJson = '';                 // last known committed photos.json
+  var remoteJson = '';                 // committed photos.json, canonicalized
+  var remoteExists = false;            // false until we have seen it on GitHub
   var pending = new Map();
   var deletions = new Set();
   var drag = null;
@@ -130,18 +131,20 @@
     gh('/contents/' + DATA_PATH + '?ref=' + encodeURIComponent(cfg.branch))
       .then(function (file) {
         var text = decodeURIComponent(escape(atob(file.content.replace(/\s/g, ''))));
-        remoteJson = text;
         draft = JSON.parse(text);
+        remoteExists = true;
       })
       .catch(function (err) {
         if (err.status !== 404) throw err;
-        remoteJson = '';
         draft = blankDraft();
+        remoteExists = false;
         toast('repo 裡還沒有 ' + DATA_PATH + '，會在第一次發佈時建立');
       })
       .then(function () {
         if (!draft.profile) draft.profile = blankDraft().profile;
         if (!Array.isArray(draft.photos)) draft.photos = [];
+        // '' while the repo has no photos.json yet, so the first publish counts
+        remoteJson = remoteExists ? serialize(draft) : '';
         pending.clear();
         deletions.clear();
         $('repoChip').textContent = cfg.owner + '/' + cfg.repo + ' · ' + cfg.branch;
@@ -151,6 +154,7 @@
         fillProfile();
         render();
         renderStats();          // top-photo list can now show thumbnails
+        markDirty();
         status('已連線', 'ok');
       })
       .catch(function (err) {
@@ -543,12 +547,16 @@
 
   /* ── publish ───────────────────────────────────────────────── */
 
-  function serialize() {
+  /* The canonical form of photos.json. Both the draft and whatever is
+     committed are run through this before they are compared, so a file
+     whose keys sit in a different order than we write them does not look
+     like a pending change forever. */
+  function serialize(data) {
     return JSON.stringify({
       version: 1,
-      hero: draft.hero,
-      profile: draft.profile,
-      photos: draft.photos.map(function (p) {
+      hero: data.hero,
+      profile: data.profile,
+      photos: data.photos.map(function (p) {
         return {
           id: p.id, src: p.src, mid: p.mid, thumb: p.thumb,
           w: p.w, h: p.h, caption: p.caption || ''
@@ -558,7 +566,7 @@
   }
 
   function changeCount() {
-    var jsonChanged = serialize() !== remoteJson ? 1 : 0;
+    var jsonChanged = serialize(draft) !== remoteJson ? 1 : 0;
     return (pending.size / RENDITIONS | 0) + deletions.size + jsonChanged;
   }
 
@@ -585,7 +593,7 @@
 
   function publish() {
     if (!draft) return;
-    var json = serialize();
+    var json = serialize(draft);
     var paths = Array.from(pending.keys());
     $('publishBtn').disabled = true;
     status('發佈中…', 'busy');
